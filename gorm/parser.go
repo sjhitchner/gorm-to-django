@@ -11,13 +11,14 @@ import (
 	"strings"
 )
 
-type Model struct {
-	Name      string
-	TableName string
-	Fields    []Field
+type Struct struct {
+	IsModel  bool
+	Name     string
+	Metadata map[string]string
+	Fields   []Field
 }
 
-func (t Model) String() string {
+func (t Struct) String() string {
 	b, err := json.MarshalIndent(t, "", "  ")
 	if err != nil {
 		return string(b)
@@ -28,6 +29,7 @@ func (t Model) String() string {
 type Field struct {
 	Name string
 	Type string
+	Kind string
 	Tags []Tag
 }
 
@@ -36,9 +38,9 @@ type Tag struct {
 	Value string
 }
 
-func Parse(packageDir string) (<-chan Model, error) {
+func Parse(packageDir string) (<-chan Struct, error) {
 
-	out := make(chan Model)
+	out := make(chan Struct)
 
 	// Create the file set and parse the package
 	fset := token.NewFileSet()
@@ -68,49 +70,37 @@ func Parse(packageDir string) (<-chan Model, error) {
 	return out, nil
 }
 
-func gormInspectV2(ch chan<- Model, fset *token.FileSet) func(node ast.Node) bool {
-
+func gormInspectV2(ch chan<- Struct, fset *token.FileSet) func(node ast.Node) bool {
 	var comments []string
 
 	return func(node ast.Node) bool {
 		var comment string
 
-		switch typeSpec := node.(type) {
+		switch t := node.(type) {
 		case *ast.TypeSpec:
-			if structType, ok := typeSpec.Type.(*ast.StructType); ok {
+			if structType, ok := t.Type.(*ast.StructType); ok {
 				comment, comments = pop(comments)
 
-				if !strings.HasPrefix(comment, "g2d") {
-					return true
-				}
-				meta := parseComment(comment)
-
-				fmt.Println("Struct:", typeSpec.Name, meta)
+				fmt.Println("Struct:", t.Name)
 				fields := make([]Field, 0, 20)
 
 				// Optionally, you can print fields of the struct
-				for _, field := range structType.Fields.List {
-					fieldName := field.Names[0].Name
-
-					fieldType, tags := parseField(fset, field)
-					fmt.Printf(" Field: %s %s %s\n", fieldName, fieldType, tags)
-
-					fields = append(fields, Field{
-						Name: fieldName,
-						Type: fieldType,
-						Tags: tags,
-					})
+				for _, f := range structType.Fields.List {
+					field := parseField(fset, f)
+					fmt.Printf(" Field: %v\n", field)
+					fields = append(fields, field)
 				}
 
-				ch <- Model{
-					Name:      typeSpec.Name.String(),
-					TableName: meta["tablename"],
-					Fields:    fields,
+				ch <- Struct{
+					IsModel:  strings.HasPrefix(comment, "g2d"),
+					Name:     t.Name.String(),
+					Metadata: parseComment(comment),
+					Fields:   fields,
 				}
 			}
 
 		case *ast.GenDecl:
-			comment = typeSpec.Doc.Text()
+			comment = t.Doc.Text()
 			if comment != "" {
 				comments = append(comments, comment)
 			}
@@ -146,34 +136,58 @@ func pop(s []string) (string, []string) {
 	return "", s
 }
 
-func parseField(fset *token.FileSet, field *ast.Field) (string, []Tag) {
-	var fieldType string
+func parseField(fset *token.FileSet, field *ast.Field) Field {
+	var fieldType, fieldKind string
 
 	// Determine field data type
 	switch t := field.Type.(type) {
 	case *ast.Ident:
+		fmt.Println("ident", t.Name)
 		fieldType = t.Name
+		fieldKind = t.Name
+
+		if t.Obj != nil {
+			switch d := t.Obj.Decl.(type) {
+			case *ast.TypeSpec:
+				fieldKind = fmt.Sprintf("%v", d.Type)
+			}
+		}
 
 	case *ast.SelectorExpr:
+		fmt.Println("times", t.X.(*ast.Ident).Name)
 		fieldType = fmt.Sprintf("%s.%s", t.X.(*ast.Ident).Name, t.Sel.Name)
 
 	case *ast.StarExpr:
-		if ident, ok := t.X.(*ast.Ident); ok {
-			fieldType = "*" + ident.Name
+
+		switch d := t.X.(type) {
+		case *ast.Ident:
+			fieldType = "*" + d.Name
+			fieldKind = "struct"
+
+		case *ast.SelectorExpr:
+			fieldType = fmt.Sprintf("*%s.%s", d.X.(*ast.Ident).Name, d.Sel.Name)
+			fieldKind = fmt.Sprintf("%s.%s", d.X.(*ast.Ident).Name, d.Sel.Name)
 		}
+
 	case *ast.ArrayType:
 		// fieldType = fmt.Sprintf("[]%s", fset.Position(t.Pos()).String())
 		fieldType = fmt.Sprintf("[]%v", t.Elt)
+		fieldKind = "array"
 
 	case *ast.MapType:
 		fieldType = fmt.Sprintf("map[%s]%s", fset.Position(t.Key.Pos()).String(), fset.Position(t.Value.Pos()).String())
+		fieldKind = "map"
 
 	default:
 		fieldType = "unknown"
 	}
 
-	// Extract struct tags if present
-	return fieldType, parseTags(field.Tag)
+	return Field{
+		Name: field.Names[0].Name,
+		Type: fieldType,
+		Kind: fieldKind,
+		Tags: parseTags(field.Tag),
+	}
 }
 
 func parseTags(tag *ast.BasicLit) []Tag {
