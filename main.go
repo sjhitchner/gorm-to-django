@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sjhitchner/gorm-to-django/django"
+	"github.com/sjhitchner/gorm-to-django/gorm"
+
 	"github.com/spf13/cobra"
 )
 
@@ -31,8 +34,14 @@ var rootCmd = &cobra.Command{
 				return err
 			}
 		*/
+		gormCh, err := gorm.Parse(gormDir)
+		if err != nil {
+			return err
+		}
 
-		return parse(gormDir)
+		djangoCh := django.Convert(gormCh)
+
+		return django.Generate(os.Stderr, djangoCh)
 	},
 }
 
