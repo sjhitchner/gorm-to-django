@@ -62,7 +62,7 @@ func Parse(packageDir string) (<-chan Struct, error) {
 				fmt.Println("\nFile:", filename)
 
 				// Inspect the AST (Abstract Syntax Tree) of the file
-				ast.Inspect(file, gormInspectV2(out, fset))
+				ast.Inspect(file, gormInspect(out, fset))
 			}
 		}
 	}()
@@ -70,7 +70,7 @@ func Parse(packageDir string) (<-chan Struct, error) {
 	return out, nil
 }
 
-func gormInspectV2(ch chan<- Struct, fset *token.FileSet) func(node ast.Node) bool {
+func gormInspect(ch chan<- Struct, fset *token.FileSet) func(node ast.Node) bool {
 	var comments []string
 
 	return func(node ast.Node) bool {
@@ -215,69 +215,4 @@ func parseTags(tag *ast.BasicLit) []Tag {
 		}
 	}
 	return tags
-}
-
-func gormInspectV1(fset *token.FileSet) func(node ast.Node) bool {
-	// if typeSpec, ok := node.(*ast.TypeSpec); ok {
-	//	fmt.Println("Type:", typeSpec.Name)
-	//}
-
-	/*
-		// Print function declarations
-		if funcDecl, ok := node.(*ast.FuncDecl); ok {
-			fmt.Println("Function:", funcDecl.Name)
-		}
-
-		// Print variable declarations
-		if varSpec, ok := node.(*ast.ValueSpec); ok {
-			for _, name := range varSpec.Names {
-				fmt.Println("Variable:", name)
-			}
-		}
-	*/
-
-	return func(node ast.Node) bool {
-		if typeSpec, ok := node.(*ast.TypeSpec); ok {
-			if structType, ok := typeSpec.Type.(*ast.StructType); ok {
-				fmt.Println("Struct:", typeSpec.Name)
-
-				// Optionally, you can print fields of the struct
-				for _, field := range structType.Fields.List {
-					fieldName := field.Names[0].Name
-					var fieldType string
-
-					// Determine field data type
-					switch t := field.Type.(type) {
-					case *ast.Ident:
-						fieldType = t.Name
-					case *ast.SelectorExpr:
-						fieldType = fmt.Sprintf("%s.%s", t.X.(*ast.Ident).Name, t.Sel.Name)
-					case *ast.StarExpr:
-						if ident, ok := t.X.(*ast.Ident); ok {
-							fieldType = "*" + ident.Name
-						}
-					case *ast.ArrayType:
-						fieldType = fmt.Sprintf("[]%s", fset.Position(t.Pos()).String())
-					case *ast.MapType:
-						fieldType = fmt.Sprintf("map[%s]%s", fset.Position(t.Key.Pos()).String(), fset.Position(t.Value.Pos()).String())
-					default:
-						fieldType = "unknown"
-					}
-
-					var fieldTag string
-
-					// Extract struct tags if present
-					if field.Tag != nil {
-						fieldTag = field.Tag.Value
-					}
-
-					fmt.Println(field.Comment)
-
-					fmt.Printf("  Field: %s %s %s\n", fieldName, fieldType, fieldTag)
-				}
-			}
-		}
-
-		return true
-	}
 }
