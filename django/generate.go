@@ -1,67 +1,137 @@
 package django
 
 import (
-	// "fmt"
+	"fmt"
 	"io"
+	"sort"
+	"sync"
 	"text/template"
 
 	"github.com/sjhitchner/gorm-to-django/gorm"
+
+	"github.com/iancoleman/strcase"
 )
 
-const Template = `
-from django.db import models
+type Generator struct {
+	models []Model
+	tmpl   *template.Template
+}
 
-{{ range . }}
-class {{ .Name }}(models.Model):
+func New(templateDir string) (*Generator, error) {
 
-	{{ range .Fields }}
-	{{ .SnakeCase }} = models.{{- .Type }}(.Args)
-	{{ end }}
+	tmpl := template.New("django")
 
-	class Meta:
-		table_name: {{ .TableName }}	
+	var err error
+	if templateDir == "" {
+		tmpl, err = tmpl.New("model").Parse(ModelTemplate)
+		if err != nil {
+			return nil, err
+		}
 
-	def __str__(self):
-		return self.name
+		tmpl, err = tmpl.New("admin").Parse(AdminTemplate)
+		if err != nil {
+			return nil, err
+		}
 
-{{ end }}
-`
+	} else {
 
-func Generate(w io.Writer, in <-chan Model) error {
-
-	// Create a template with a unique name
-	tmpl, err := template.New("django").Parse(Template)
-	if err != nil {
-		return err
 	}
 
-	var models []Model
-	for model := range in {
-		models = append(models, model)
+	return &Generator{
+		models: make([]Model, 0, 10),
+		tmpl:   tmpl,
+	}, nil
+}
+
+func (t *Generator) Build(in <-chan gorm.Struct) error {
+
+	structMap := make(map[string]*gorm.Struct)
+	for gm := range in {
+		fmt.Println(gm)
+		structMap[gm.Name] = &gm
 	}
 
-	if err := tmpl.Execute(w, models); err != nil {
-		return err
+	// Preprocessing
+	for _, s := range structMap {
+		if s.IsModel {
+			err := preprocessModel(s, structMap)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Final Wrap up
+	for _, s := range structMap {
+		if s.IsModel {
+			model, err := makeModel(s, structMap)
+			if err != nil {
+				return err
+			}
+
+			sort.Sort(model.Fields)
+
+			t.models = append(t.models, *model)
+		}
 	}
 
 	return nil
 }
 
-func Convert(in <-chan gorm.Model) <-chan Model {
-	out := make(chan Model)
+func preprocessModel(s *gorm.Struct, structMap map[string]*gorm.Struct) error {
+
+	for _, field := range s.Fields {
+	}
+
+	return
+}
+
+func makeModel(s *gorm.Struct, structMap map[string]*gorm.Struct) (*Model, error) {
+
+	//	models := chan
+
+	var wg sync.WaitGroup
+
+	fieldCh := make(chan Field)
+	errCh := make(chan error)
+	for _, field := range s.Fields {
+		for _, fn := range fieldFuncs {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				fn(fieldCh, errCh, field, s, structMap)
+			}()
+		}
+	}
+
+	wg.Wait()
+	close(fieldCh)
+	close(errCh)
 
 	go func() {
-		defer close(out)
-
-		for gm := range in {
-			// fmt.Println(gm)
-
-			out <- Model{
-				Name:      gm.Name,
-				TableName: gm.TableName,
-			}
+		var fields []Field
+		for field := range fieldCh {
+			fields = append(fields, field)
 		}
-
 	}()
-	return out
+
+	return &Model{
+		Name:      s.Name,
+		TableName: strcase.ToSnake(s.TableName()),
+		Fields:    fields,
+	}, nil
+}
+
+func (t *Generator) Models(w io.Writer) error {
+	if err := t.tmpl.ExecuteTemplate(w, "model", t.models); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t *Generator) Admin(w io.Writer) error {
+	if err := t.tmpl.ExecuteTemplate(w, "admin", t.models); err != nil {
+		return err
+	}
+	return nil
 }

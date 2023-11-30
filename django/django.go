@@ -1,26 +1,136 @@
 package django
 
 import (
+	"encoding/json"
 	"fmt"
-	"reflect"
-	"strings"
 )
 
-type Field interface {
-	Django() string
+type DjangoFieldType string
+
+const (
+	AutoField                 DjangoFieldType = "AutoField"
+	BigAutoField              DjangoFieldType = "BigAutoField"
+	BigIntegerField           DjangoFieldType = "BigIntegerField"
+	BinaryField               DjangoFieldType = "BinaryField"
+	BooleanField              DjangoFieldType = "BooleanField"
+	CharField                 DjangoFieldType = "CharField"
+	DateField                 DjangoFieldType = "DateField"
+	DateTimeField             DjangoFieldType = "DateTimeField"
+	DecimalField              DjangoFieldType = "DecimalField"
+	DurationField             DjangoFieldType = "DurationField"
+	EmailField                DjangoFieldType = "EmailField"
+	FileField                 DjangoFieldType = "FileField"
+	FilePathField             DjangoFieldType = "FilePathField"
+	ForeignKey                DjangoFieldType = "ForeignKey"
+	GenericIPAddressField     DjangoFieldType = "GenericIPAddressField"
+	ImageField                DjangoFieldType = "ImageField"
+	IntegerField              DjangoFieldType = "IntegerField"
+	FloatField                DjangoFieldType = "FloatField"
+	JSONField                 DjangoFieldType = "JSONField"
+	PositiveBigIntegerField   DjangoFieldType = "PositiveBigIntegerField"
+	PositiveIntegerField      DjangoFieldType = "PositiveIntegerField"
+	PositiveSmallIntegerField DjangoFieldType = "PositiveSmallIntegerField"
+	SlugField                 DjangoFieldType = "SlugField"
+	SmallIntegerField         DjangoFieldType = "SmallIntegerField"
+	SmallAutoField            DjangoFieldType = "SmallAutoField"
+	TextField                 DjangoFieldType = "TextField"
+	TimeField                 DjangoFieldType = "TimeField"
+	URLField                  DjangoFieldType = "URLField"
+	UUIDField                 DjangoFieldType = "UUIDField"
+)
+
+type Field struct {
+	Name           string
+	Type           string
+	IsNullable     bool
+	IsPrimaryKey   bool
+	IsRelationship bool
+	Contraints     map[string]string
 }
 
 type Model struct {
 	Name      string
 	TableName string
-	Fields    []Field
+	Fields    Fields
+}
+
+func (t Model) String() string {
+	b, err := json.MarshalIndent(t, "", "  ")
+	if err != nil {
+		return string(b)
+	}
+	return string(b)
+}
+
+type Fields []Field
+
+func (t Fields) Len() int {
+	return len(t)
+}
+
+func (t Fields) Less(i, j int) bool {
+	if t[i].Name == "ID" {
+		return true
+
+	} else if t[j].Name == "ID" {
+		return false
+
+	}
+	return t[i].Name < t[j].Name
+}
+
+func (t Fields) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
+func (t Field) DjangoType() (DjangoFieldType, error) {
+
+	if t.IsPrimaryKey {
+		switch t.Type {
+		case "uint", "uint32", "uint8", "uint16", "int", "int32":
+			return AutoField, nil
+		case "int64", "uint64":
+			return BigAutoField, nil
+		}
+		return "", fmt.Errorf("Invalid type for AutoField (%s)", t.Type)
+	}
+
+	if t.IsRelationship {
+		return ForeignKey, nil
+	}
+
+	switch t.Type {
+	case "map":
+		return JSONField, nil
+	case "uint", "uint32":
+		return PositiveIntegerField, nil
+	case "uint8", "uint16":
+		return PositiveSmallIntegerField, nil
+	case "uint64":
+		return PositiveBigIntegerField, nil
+	case "int", "int32":
+		return IntegerField, nil
+	case "int64":
+		return BigIntegerField, nil
+	case "float32", "float64":
+		return FloatField, nil
+	case "string":
+		return TextField, nil
+	case "bool":
+		return BooleanField, nil
+	case "time.Time":
+		return DateTimeField, nil
+	case "time.Duration":
+		return DurationField, nil
+	}
+
+	return "", fmt.Errorf("Unhandled gotype (%s)", t.Type)
 }
 
 /*
 AutoField
 BigAutoField
 BigIntegerField
-BinaryField
 BooleanField
 CharField
 DateField
@@ -104,18 +214,6 @@ class Country(models.Model):
 
 
 */
-
-type CharField struct {
-}
-
-type IntegerField struct {
-}
-
-type TextField struct {
-}
-
-type DateTimeField struct {
-}
 
 /*
 type Field interface {
@@ -248,6 +346,7 @@ func (f *BooleanField) FieldArgs() []string {
 }
 */
 
+/*
 // GORM model tag constants
 const (
 	gormTag        = "gorm"
@@ -347,7 +446,6 @@ type GORMModel struct {
 	IsStudent bool   `gorm:"column:is_student;not null;default:false" json:"is_student"`
 }
 
-/*
 func main() {
 	// Example usage
 	gormModel := &GORMModel{}
