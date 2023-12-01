@@ -1,42 +1,13 @@
 package gorm
 
 import (
-	"encoding/json"
 	"fmt"
 	"go/ast"
-	// "go/doc"
 	"go/parser"
 	"go/token"
 	"reflect"
 	"strings"
 )
-
-type Struct struct {
-	IsModel  bool
-	Name     string
-	Metadata map[string]string
-	Fields   []Field
-}
-
-func (t Struct) String() string {
-	b, err := json.MarshalIndent(t, "", "  ")
-	if err != nil {
-		return string(b)
-	}
-	return string(b)
-}
-
-type Field struct {
-	Name string
-	Type string
-	Kind string
-	Tags []Tag
-}
-
-type Tag struct {
-	Name  string
-	Value string
-}
 
 func Parse(packageDir string) (<-chan Struct, error) {
 
@@ -137,19 +108,18 @@ func pop(s []string) (string, []string) {
 }
 
 func parseField(fset *token.FileSet, field *ast.Field) Field {
-	var fieldType, fieldKind string
+	var fieldType string
 
 	// Determine field data type
 	switch t := field.Type.(type) {
 	case *ast.Ident:
 		fmt.Println("ident", t.Name)
 		fieldType = t.Name
-		fieldKind = t.Name
 
 		if t.Obj != nil {
 			switch d := t.Obj.Decl.(type) {
 			case *ast.TypeSpec:
-				fieldKind = fmt.Sprintf("%v", d.Type)
+				fieldType = fmt.Sprintf("%v", d.Type)
 			}
 		}
 
@@ -158,25 +128,19 @@ func parseField(fset *token.FileSet, field *ast.Field) Field {
 		fieldType = fmt.Sprintf("%s.%s", t.X.(*ast.Ident).Name, t.Sel.Name)
 
 	case *ast.StarExpr:
-
 		switch d := t.X.(type) {
 		case *ast.Ident:
 			fieldType = "*" + d.Name
-			fieldKind = "struct"
 
 		case *ast.SelectorExpr:
 			fieldType = fmt.Sprintf("*%s.%s", d.X.(*ast.Ident).Name, d.Sel.Name)
-			fieldKind = fmt.Sprintf("%s.%s", d.X.(*ast.Ident).Name, d.Sel.Name)
 		}
 
 	case *ast.ArrayType:
-		// fieldType = fmt.Sprintf("[]%s", fset.Position(t.Pos()).String())
 		fieldType = fmt.Sprintf("[]%v", t.Elt)
-		fieldKind = "array"
 
 	case *ast.MapType:
 		fieldType = fmt.Sprintf("map[%s]%s", fset.Position(t.Key.Pos()).String(), fset.Position(t.Value.Pos()).String())
-		fieldKind = "map"
 
 	default:
 		fieldType = "unknown"
@@ -185,12 +149,11 @@ func parseField(fset *token.FileSet, field *ast.Field) Field {
 	return Field{
 		Name: field.Names[0].Name,
 		Type: fieldType,
-		Kind: fieldKind,
 		Tags: parseTags(field.Tag),
 	}
 }
 
-func parseTags(tag *ast.BasicLit) []Tag {
+func parseTags(tag *ast.BasicLit) map[string]Tag {
 	if tag == nil {
 		return nil
 	}
@@ -200,19 +163,23 @@ func parseTags(tag *ast.BasicLit) []Tag {
 		return nil
 	}
 
-	tags := make([]Tag, 0, 5)
+	fmt.Println("TAG", tag.Value, values)
+
+	tagMap := make(map[string]Tag)
 	for _, tag := range strings.Split(values, ";") {
 		value := strings.SplitN(tag, ":", 2)
-		if len(value) > 1 {
-			tags = append(tags, Tag{
-				Name:  value[0],
-				Value: value[1],
-			})
-		} else {
-			tags = append(tags, Tag{
-				Name: value[0],
-			})
+
+		if value[0] == "" {
+			continue
 		}
+
+		t := Tag{
+			Name: value[0],
+		}
+		if len(value) > 1 {
+			t.Value = value[1]
+		}
+		tagMap[t.Name] = t
 	}
-	return tags
+	return tagMap
 }
