@@ -3,6 +3,7 @@ package django
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type DjangoFieldType string
@@ -69,13 +70,23 @@ func (t Fields) Len() int {
 }
 
 func (t Fields) Less(i, j int) bool {
-	if t[i].Name == "ID" {
+	if t[i].Name == "id" {
 		return true
 
-	} else if t[j].Name == "ID" {
+	} else if t[j].Name == "id" {
 		return false
 
 	}
+
+	if strings.HasSuffix(t[i].Name, "_at") &&
+		strings.HasSuffix(t[j].Name, "_at") {
+		return t[i].Name < t[j].Name
+	} else if strings.HasSuffix(t[i].Name, "_at") {
+		return false
+	} else if strings.HasSuffix(t[i].Name, "_at") {
+		return true
+	}
+
 	return t[i].Name < t[j].Name
 }
 
@@ -83,7 +94,7 @@ func (t Fields) Swap(i, j int) {
 	t[i], t[j] = t[j], t[i]
 }
 
-func (t Field) DjangoType() (DjangoFieldType, error) {
+func (t Field) DjangoField() (DjangoFieldType, error) {
 
 	if t.IsPrimaryKey {
 		switch t.Type {

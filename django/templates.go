@@ -7,12 +7,12 @@ from django.db import models
 class {{ .Name }}(models.Model):
 
 	{{- range .Fields }}
-	{{ .Name }} = models.{{- .Type }}()
+	{{ .Name }} = models.{{- .DjangoField }}()
 	{{- end }}
 
 	class Meta:
-        managed = False
-        db_table = {{ .TableName }}
+		managed = False
+		db_table = {{ .TableName }}
 
 	def __str__(self):
 		return self.name
