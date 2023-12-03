@@ -125,8 +125,24 @@ func (t Field) IsMap() bool {
 }
 
 func (t Field) IsStruct() bool {
-	switch t.Type {
-	case "int", "int32", "int64", "float32", "float64", "bool":
+	goType, _ := t.GetType()
+
+	switch GoType(goType) {
+	case IntType, Int8Type, Int16Type, Int32Type, Int64Type:
+		return false
+	case UIntType, UInt8Type, UInt16Type, UInt32Type, UInt64Type:
+		return false
+	case Float32Type, Float64Type:
+		return false
+	case StringType:
+		return false
+	case BoolType:
+		return false
+	case ByteType, RuneType:
+		return false
+	case Complex64Type, Complex128Type:
+		return false
+	case TimeType:
 		return false
 	}
 	return !t.IsArray() && !t.IsMap()
@@ -183,7 +199,7 @@ func (t Tag) IsAutoUpdateTime() bool {
 }
 
 func (t Tag) HasConstraints() (map[string]string, bool) {
-	if t.Name != "constraints" {
+	if t.Name != "constraint" {
 		return nil, false
 	}
 	return parseConstraints(t.Value), true
@@ -200,7 +216,7 @@ func parseConstraints(optionsString string) map[string]string {
 		// Split the record into key and value separated by colon
 		parts := strings.SplitN(record, ":", 2)
 		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
+			key := strcase.ToSnake(strings.TrimSpace(parts[0]))
 			value := strings.TrimSpace(parts[1])
 			options[key] = value
 		}
@@ -208,3 +224,27 @@ func parseConstraints(optionsString string) map[string]string {
 
 	return options
 }
+
+type GoType string
+
+const (
+	IntType        GoType = "int"
+	Int8Type       GoType = "int8"
+	Int16Type      GoType = "int16"
+	Int32Type      GoType = "int32"
+	Int64Type      GoType = "int64"
+	UIntType       GoType = "uint"
+	UInt8Type      GoType = "uint8"
+	UInt16Type     GoType = "uint16"
+	UInt32Type     GoType = "uint32"
+	UInt64Type     GoType = "uint64"
+	Float32Type    GoType = "float32"
+	Float64Type    GoType = "float64"
+	StringType     GoType = "string"
+	BoolType       GoType = "bool"
+	ByteType       GoType = "byte"
+	RuneType       GoType = "rune"
+	Complex64Type  GoType = "complex64"
+	Complex128Type GoType = "complex128"
+	TimeType       GoType = "time.Time"
+)
