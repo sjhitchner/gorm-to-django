@@ -17,7 +17,7 @@ type Generator struct {
 	tmpl   *template.Template
 }
 
-func NewWithCustomTemplates() (*Generator, error) {
+func NewWithCustomTemplates(templateDir string) (*Generator, error) {
 	return nil, nil
 }
 

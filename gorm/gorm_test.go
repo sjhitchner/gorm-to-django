@@ -16,7 +16,6 @@ type GORMSuite struct{}
 
 var _ = Suite(&GORMSuite{})
 
-// TestModel is a test method for the GORMSuite
 func (s *GORMSuite) TestPreprocess(c *C) {
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -47,7 +46,6 @@ func (s *GORMSuite) TestPreprocess(c *C) {
 }
 
 func checkEvent(c *C, s Struct) {
-	//fmt.Println(s)
 	c.Assert(s.Name, Equals, "Event")
 	c.Assert(len(s.Fields), Equals, 17)
 }
@@ -59,7 +57,6 @@ func checkCategory(c *C, s Struct) {
 }
 
 func checkMoney(c *C, s Struct) {
-	//fmt.Println(s)
 	c.Assert(s.Name, Equals, "Money")
 	c.Assert(len(s.Fields), Equals, 3)
 }
