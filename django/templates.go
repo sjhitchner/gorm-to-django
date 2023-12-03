@@ -7,7 +7,7 @@ from django.db import models
 class {{ .Name }}(models.Model):
 
 	{{- range .Fields }}
-	{{ .Name }} = models.{{- .DjangoField }}()
+	{{ .Name }} = models.{{- .DjangoField }}({{ .DjangoArgs }})
 	{{- end }}
 
 	class Meta:
@@ -24,9 +24,9 @@ const AdminTemplate = `
 from django.contrib import admin
 
 from .models import (
-{{ range . }}
-	{{ .Name }}Event,
-{{ end }}
+{{- range . }}
+	{{ .Name }},
+{{- end }}
 )
 
 {{ range . }}
@@ -37,5 +37,5 @@ class {{ .Name }}Admin(admin.ModelAdmin):
 
 {{ range . }}
 admin.site.register({{ .Name }}, {{ .Name }}Admin)
-{{ end }}
+{{- end }}
 `

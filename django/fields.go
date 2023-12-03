@@ -46,12 +46,16 @@ func makeEmbedded(out chan<- Field, field gorm.Field, st gorm.Struct, structMap 
 
 func makeRelationship(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[string]gorm.Struct) (bool, error) {
 	if field.IsStruct() && !field.IsEmbedded() {
-		modelType, nullable := field.GetType()
+
+		constraints, _ := field.HasConstraints()
+
+		modelType, _ := field.GetType()
 		out <- Field{
 			Name:           field.SnakeName(),
 			Type:           modelType,
-			IsNullable:     nullable,
+			IsNullable:     false,
 			IsRelationship: true,
+			Constraints:    constraints,
 		}
 		return true, nil
 	}

@@ -2,7 +2,7 @@ package django
 
 import (
 	"encoding/json"
-	"fmt"
+	// "fmt"
 	"os"
 	"strings"
 	"testing"
@@ -34,15 +34,18 @@ func (s *DjangoSuite) TestModelGenerate(c *C) {
 	c.Assert(s.gen.GenerateModels(os.Stdout), IsNil)
 }
 
-// TestModel is a test method for the DjangoSuite
+func (s *DjangoSuite) TestAdminGenerate(c *C) {
+	c.Assert(s.gen.GenerateAdmin(os.Stdout), IsNil)
+}
+
 func (s *DjangoSuite) TestModel(c *C) {
 	for _, model := range s.gen.Models {
 		switch model.Name {
 		case "Event":
-			checkEvent(c, model)
+			checkEvent(c, &model)
 
 		case "Category":
-			checkCategory(c, model)
+			checkCategory(c, &model)
 
 		default:
 			c.Errorf("unexpected model (%s)", model.Name)
@@ -50,30 +53,50 @@ func (s *DjangoSuite) TestModel(c *C) {
 	}
 }
 
-func checkEvent(c *C, model Model) {
-	fmt.Println(model)
+func checkEvent(c *C, model *Model) {
 	c.Assert(model.Name, Equals, "Event")
+	c.Assert(len(model.Fields), Equals, 19)
 
-	/*
-		c.Assert(len(model.Fields), Equals, 20)
-
-		check4Field(c, model, "min_ticket_price_amount", "float64", false)
-		check4Field(c, model, "min_ticket_price_currency_code", "string", false)
-		check4Field(c, model, "min_ticket_price_display", "string", false)
-		check4Field(c, model, "genre", "ForeignKey", false)
-		check4Field(c, model, "venue", "ForeignKey", false)
-	*/
+	check4Field(c, model, "id", "int64", false, BigAutoField)
+	check4Field(c, model, "date_confirmed", "bool", false, BooleanField)
+	check4Field(c, model, "end_date", "time.Time", true, DateTimeField)
+	check4Field(c, model, "event_api", "string", false, TextField)
+	check4Field(c, model, "genre", "Genre", false, ForeignKey)
+	check4Field(c, model, "link", "string", false, TextField)
+	check4Field(c, model, "min_ticket_price_amount", "float64", false, FloatField)
+	check4Field(c, model, "min_ticket_price_currency_code", "string", false, TextField)
+	check4Field(c, model, "min_ticket_price_display", "string", false, TextField)
+	check4Field(c, model, "name", "string", false, TextField)
+	check4Field(c, model, "on_sale_date", "time.Time", true, DateTimeField)
+	check4Field(c, model, "start_date", "time.Time", false, DateTimeField)
+	check4Field(c, model, "status", "string", false, TextField)
+	check4Field(c, model, "time_confirmed", "bool", false, BooleanField)
+	check4Field(c, model, "type", "string", false, TextField)
+	check4Field(c, model, "venue", "Venue", false, ForeignKey)
+	check4Field(c, model, "created_at", "time.Time", true, DateTimeField)
+	check4Field(c, model, "deleted_at", "time.Time", true, DateTimeField)
+	check4Field(c, model, "updated_at", "time.Time", true, DateTimeField)
 }
 
-func checkCategory(c *C, model Model) {
-	fmt.Println(model)
+func checkCategory(c *C, model *Model) {
 	c.Assert(model.Name, Equals, "Category")
+	c.Assert(len(model.Fields), Equals, 4)
+	check4Field(c, model, "id", "int64", false, AutoField)
+	check4Field(c, model, "event", "Event", false, ForeignKey)
+	check4Field(c, model, "name", "string", false, TextField)
+	check4Field(c, model, "role", "string", false, TextField)
 }
 
-func check4Field(c *C, model *Model, name, typ string, nullable bool) {
+func check4Field(c *C, model *Model, name, typ string, nullable bool, djangoType DjangoFieldType) {
 	for _, field := range model.Fields {
 		if field.Name == name {
-			c.Assert(typ, Equals, field.Type)
+			c.Assert(field.Type, Equals, typ, Commentf(field.Name))
+			c.Assert(field.IsNullable, Equals, nullable, Commentf(field.Name))
+
+			djt, err := field.DjangoField()
+			c.Assert(err, IsNil, Commentf(field.Name))
+			c.Assert(djt, Equals, djangoType, Commentf(field.Name))
+
 			return
 		}
 	}
@@ -290,7 +313,7 @@ var Structs = `[
   "Fields": [
     {
       "Name": "ID",
-      "Type": "int64",
+      "Type": "int",
       "Tags": {
         "primaryKey": {
           "Name": "primaryKey",
