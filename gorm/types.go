@@ -112,6 +112,16 @@ func (t Field) GetType() (string, bool) {
 	return t.Type, false
 }
 
+func (t Field) GetTags(source string) map[string]string {
+	m := make(map[string]string)
+	for _, tag := range t.Tags {
+		if source == tag.Source {
+			m[tag.Name] = tag.Value
+		}
+	}
+	return m
+}
+
 func (t Field) IsInt64() bool {
 	return t.Type == "int64"
 }
@@ -166,8 +176,9 @@ func (t Field) String() string {
 }
 
 type Tag struct {
-	Name  string
-	Value string
+	Name   string
+	Value  string
+	Source string
 }
 
 func (t Tag) IsPrimaryKey() bool {

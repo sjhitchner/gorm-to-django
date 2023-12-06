@@ -134,12 +134,18 @@ func parseTags(tag *ast.BasicLit) map[string]Tag {
 		return nil
 	}
 
-	values, ok := reflect.StructTag(tag.Value).Lookup("gorm")
+	tagMap := make(map[string]Tag)
+	parseTagByName(tag, tagMap, "gorm")
+	parseTagByName(tag, tagMap, "django")
+	return tagMap
+}
+
+func parseTagByName(tag *ast.BasicLit, tagMap map[string]Tag, name string) {
+	values, ok := reflect.StructTag(tag.Value).Lookup(name)
 	if !ok {
-		return nil
+		return
 	}
 
-	tagMap := make(map[string]Tag)
 	for _, tag := range strings.Split(values, ";") {
 		value := strings.SplitN(tag, ":", 2)
 
@@ -148,14 +154,14 @@ func parseTags(tag *ast.BasicLit) map[string]Tag {
 		}
 
 		t := Tag{
-			Name: value[0],
+			Name:   value[0],
+			Source: name,
 		}
 		if len(value) > 1 {
 			t.Value = value[1]
 		}
 		tagMap[t.Name] = t
 	}
-	return tagMap
 }
 
 /*

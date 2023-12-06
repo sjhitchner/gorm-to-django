@@ -44,7 +44,7 @@ type Money struct {
 type Event struct {
 	ID             int64        `json:"id" gorm:"primaryKey"`
 	EventAPI       EventAPIName `json:"event_api" gorm:"index"`
-	Name           string       `json:"name"`
+	Name           string       `json:"name" django:"display_list"`
 	Link           string       `json:"link"`
 	StartDate      time.Time    `json:"start_date" gorm:"index"`
 	EndDate        *time.Time   `json:"end_date,omitempty"`

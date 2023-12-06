@@ -47,12 +47,56 @@ type Field struct {
 	IsPrimaryKey   bool
 	IsRelationship bool
 	Constraints    map[string]string
+	Tags           map[string]string
 }
 
 type Model struct {
 	Name      string
 	TableName string
 	Fields    Fields
+}
+
+func (t Model) DisplayList() string {
+	var list []string
+	for _, field := range t.Fields {
+		if _, yes := field.Tags["display_list"]; yes {
+			list = append(list, field.Name)
+		}
+	}
+
+	if len(list) > 0 {
+		return "'" + strings.Join(list, "','") + "'"
+	}
+
+	for _, field := range t.Fields {
+		if field.Name == "name" {
+			return "'" + field.Name + "'"
+		}
+	}
+	return "'id'"
+}
+
+func (t Model) ReadOnlyFields() string {
+	var list []string
+	for _, field := range t.Fields {
+		if _, yes := field.Tags["readonly_field"]; yes {
+			list = append(list, field.Name)
+		}
+	}
+
+	if len(list) > 0 {
+		return "'" + strings.Join(list, "','") + "'"
+	}
+
+	for _, field := range t.Fields {
+		list = append(list, field.Name)
+	}
+
+	if len(list) > 0 {
+		return "'" + strings.Join(list, "','") + "'"
+	}
+
+	return ""
 }
 
 func (t Model) String() string {

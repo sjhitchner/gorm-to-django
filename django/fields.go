@@ -30,7 +30,6 @@ func makeEmbedded(out chan<- Field, field gorm.Field, st gorm.Struct, structMap 
 		}
 
 		for _, modelField := range embeddedModel.Fields {
-
 			modelType, nullable := modelField.GetType()
 			out <- Field{
 				Name:       fmt.Sprintf("%s%s", embeddedPrefix.Value, modelField.SnakeName()),
@@ -96,6 +95,7 @@ func makeField(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map
 		Name:       field.SnakeName(),
 		Type:       modelType,
 		IsNullable: nullable,
+		Tags:       field.GetTags("django"),
 	}
 	return true, nil
 }

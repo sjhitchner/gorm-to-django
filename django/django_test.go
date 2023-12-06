@@ -2,7 +2,7 @@ package django
 
 import (
 	"encoding/json"
-	// "fmt"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -81,7 +81,7 @@ func checkEvent(c *C, model *Model) {
 func checkCategory(c *C, model *Model) {
 	c.Assert(model.Name, Equals, "Category")
 	c.Assert(len(model.Fields), Equals, 4)
-	check4Field(c, model, "id", "int64", false, AutoField)
+	check4Field(c, model, "id", "int", false, AutoField)
 	check4Field(c, model, "event", "Event", false, ForeignKey)
 	check4Field(c, model, "name", "string", false, TextField)
 	check4Field(c, model, "role", "string", false, TextField)
@@ -113,6 +113,7 @@ func structGenerator(c *C) <-chan gorm.Struct {
 		c.Assert(json.NewDecoder(strings.NewReader(Structs)).Decode(&strts), IsNil)
 
 		for _, s := range strts {
+			fmt.Println(s)
 			out <- s
 		}
 	}()
@@ -150,12 +151,24 @@ var Structs = `[
     {
       "Name": "Name",
       "Type": "string",
-      "Tags": null
+      "Tags": {
+        "display_list": {
+          "Name": "display_list",
+          "Value": "",
+		  "Source": "django"
+        }
+      }
     },
     {
       "Name": "Link",
       "Type": "string",
-      "Tags": null
+      "Tags": {
+        "display_list": {
+          "Name": "display_list",
+          "Value": "",
+		  "Source": "django"
+        }
+      }
     },
     {
       "Name": "StartDate",
@@ -208,11 +221,13 @@ var Structs = `[
       "Tags": {
         "embedded": {
           "Name": "embedded",
-          "Value": ""
+          "Value": "",
+		  "Source": "gorm"
         },
         "embeddedPrefix": {
           "Name": "embeddedPrefix",
-          "Value": "min_ticket_price_"
+          "Value": "min_ticket_price_",
+		  "Source": "gorm"
         }
       }
     },
@@ -247,11 +262,13 @@ var Structs = `[
       "Tags": {
 		"constraint": {
           "Name": "constraint",
-          "Value": "OnUpdate:CASCADE,OnDelete:CASCADE"
+          "Value": "OnUpdate:CASCADE,OnDelete:CASCADE",
+		  "Source": "gorm"
         },
         "foreignKey": {
           "Name": "foreignKey",
-          "Value": "EventID"
+          "Value": "EventID",
+		  "Source": "gorm"
         }
       }
     },
@@ -261,7 +278,8 @@ var Structs = `[
       "Tags": {
         "autoCreateTime": {
           "Name": "autoCreateTime",
-          "Value": ""
+          "Value": "",
+		  "Source": "gorm"
         }
       }
     },
@@ -271,7 +289,8 @@ var Structs = `[
       "Tags": {
         "autoUpdateTime": {
           "Name": "autoUpdateTime",
-          "Value": ""
+          "Value": "",
+		  "Source": "gorm"
         }
       }
     },

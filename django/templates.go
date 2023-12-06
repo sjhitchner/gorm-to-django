@@ -31,8 +31,8 @@ from .models import (
 
 {{ range . }}
 class {{ .Name }}Admin(admin.ModelAdmin):
-    list_display = ['name']
-	readonly_fields = 
+	list_display = [{{ .DisplayList }}]
+	readonly_fields = [{{ .ReadOnlyFields }}]  
 {{ end }}
 
 {{ range . }}

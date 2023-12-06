@@ -20,7 +20,8 @@ func (s *GORMSuite) TestRecursiveName(c *C) {
 	out, err := Parse("test")
 	c.Assert(err, IsNil)
 
-	for _ = range out {
+	for o := range out {
+		fmt.Println(o)
 	}
 }
 
