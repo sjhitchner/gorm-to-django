@@ -63,6 +63,20 @@ func (t Model) String() string {
 	return string(b)
 }
 
+type Models []Model
+
+func (t Models) Len() int {
+	return len(t)
+}
+
+func (t Models) Less(i, j int) bool {
+	return t[i].Name < t[j].Name
+}
+
+func (t Models) Swap(i, j int) {
+	t[i], t[j] = t[j], t[i]
+}
+
 type Fields []Field
 
 func (t Fields) Len() int {
@@ -164,6 +178,8 @@ func (t Field) DjangoArgs() string {
 	if t.IsNullable {
 		args = append(args, "null=True")
 	}
+
+	args = append(args, "blank=True")
 
 	return strings.Join(args, ", ")
 }

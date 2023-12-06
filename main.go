@@ -84,6 +84,8 @@ var rootCmd = &cobra.Command{
 			if err := generator.GenerateModels(f); err != nil {
 				return err
 			}
+
+			fmt.Println("Writing", filename)
 		}
 
 		if generateAdmin {
@@ -96,6 +98,8 @@ var rootCmd = &cobra.Command{
 			if err := generator.GenerateAdmin(f); err != nil {
 				return err
 			}
+
+			fmt.Println("Writing", filename)
 		}
 
 		return nil

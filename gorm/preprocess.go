@@ -56,9 +56,7 @@ func Preprocess(in <-chan Struct) (<-chan Struct, <-chan error) {
 
 		wg.Wait()
 
-		fmt.Println(updates)
 		for _, u := range updates {
-
 			s := structMap[u.Struct]
 
 			switch u.Type {

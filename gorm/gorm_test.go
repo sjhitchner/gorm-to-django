@@ -16,6 +16,14 @@ type GORMSuite struct{}
 
 var _ = Suite(&GORMSuite{})
 
+func (s *GORMSuite) TestRecursiveName(c *C) {
+	out, err := Parse("test")
+	c.Assert(err, IsNil)
+
+	for _ = range out {
+	}
+}
+
 func (s *GORMSuite) TestPreprocess(c *C) {
 	var wg sync.WaitGroup
 	wg.Add(1)

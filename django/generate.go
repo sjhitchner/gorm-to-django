@@ -1,7 +1,6 @@
 package django
 
 import (
-	"fmt"
 	"io"
 	"sort"
 	"sync"
@@ -13,7 +12,7 @@ import (
 )
 
 type Generator struct {
-	Models []Model
+	Models Models
 	tmpl   *template.Template
 }
 
@@ -50,7 +49,6 @@ func (t *Generator) Build(in <-chan gorm.Struct) error {
 
 		structMap := make(map[string]gorm.Struct)
 		for gm := range out {
-			fmt.Println(gm)
 			structMap[gm.Name] = gm
 		}
 
@@ -67,6 +65,8 @@ func (t *Generator) Build(in <-chan gorm.Struct) error {
 				t.Models = append(t.Models, *model)
 			}
 		}
+
+		sort.Sort(t.Models)
 	}()
 
 	for err := range mergeErrors(errCh, errCh2) {
