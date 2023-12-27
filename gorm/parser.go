@@ -50,6 +50,7 @@ func gormInspect(ch chan<- Struct, fset *token.FileSet) func(node ast.Node) bool
 				fields := make([]Field, 0, 20)
 				for _, f := range structType.Fields.List {
 					field := parseField(fset, f)
+					fmt.Println("field", field)
 					fields = append(fields, field)
 				}
 
@@ -107,9 +108,22 @@ func parseField(fset *token.FileSet, field *ast.Field) Field {
 func recurseType(fset *token.FileSet, node ast.Node) string {
 	switch t := node.(type) {
 	case *ast.Field:
+		// fmt.Println("field", t)
+
+		if t.Tag != nil {
+			// fmt.Println("kind", t.Tag.Kind)
+		}
+
 		return recurseType(fset, t.Type)
 
 	case *ast.Ident:
+		// fmt.Println("ident", t.NamePos, t.Name)
+		if t.Obj != nil {
+			if n, ok := t.Obj.Decl.(ast.Node); ok {
+				//fmt.Println("obj", t.Obj.Name, t.Obj.Decl, reflect.TypeOf(t.Obj.Decl))
+				return recurseType(fset, n)
+			}
+		}
 		return t.Name
 
 	case *ast.SelectorExpr:
@@ -124,8 +138,16 @@ func recurseType(fset *token.FileSet, node ast.Node) string {
 	case *ast.MapType:
 		return fmt.Sprintf("map[%s]%s", fset.Position(t.Key.Pos()).String(), fset.Position(t.Value.Pos()).String())
 
+	case *ast.TypeSpec:
+		switch t.Type.(type) {
+		case *ast.StructType:
+			return t.Name.Name
+		default:
+			return recurseType(fset, t.Type)
+		}
+
 	default:
-		panic("unknown token")
+		panic(fmt.Errorf("unknown token: %s", reflect.TypeOf(t)))
 	}
 }
 

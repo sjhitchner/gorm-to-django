@@ -12,7 +12,7 @@ class {{ .Name }}(models.Model):
 
 	class Meta:
 		managed = False
-		db_table = {{ .TableName }}
+		db_table = '{{ .TableName }}'
 
 	def __str__(self):
 		return self.name
