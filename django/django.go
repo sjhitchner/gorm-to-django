@@ -28,6 +28,7 @@ const (
 	IntegerField              DjangoFieldType = "IntegerField"
 	FloatField                DjangoFieldType = "FloatField"
 	JSONField                 DjangoFieldType = "JSONField"
+	ManyToMany                DjangoFieldType = "ManyToManyField"
 	PositiveBigIntegerField   DjangoFieldType = "PositiveBigIntegerField"
 	PositiveIntegerField      DjangoFieldType = "PositiveIntegerField"
 	PositiveSmallIntegerField DjangoFieldType = "PositiveSmallIntegerField"
@@ -41,13 +42,19 @@ const (
 )
 
 type Field struct {
-	Name           string
-	Type           string
-	IsNullable     bool
-	IsPrimaryKey   bool
-	IsRelationship bool
-	Constraints    map[string]string
-	Tags           map[string]string
+	Name            string
+	Type            string
+	IsNullable      bool
+	IsPrimaryKey    bool
+	IsRelationship  bool
+	ManyToManyTable string
+	Constraints     map[string]string
+	Tags            map[string]string
+	Django          map[string]string
+}
+
+func (t Field) HasManyToMany() bool {
+	return t.ManyToManyTable != ""
 }
 
 type Model struct {
@@ -59,7 +66,7 @@ type Model struct {
 func (t Model) DisplayList() string {
 	var list []string
 	for _, field := range t.Fields {
-		if _, yes := field.Tags["display_list"]; yes {
+		if _, yes := field.Django["display_list"]; yes {
 			list = append(list, field.Name)
 		}
 	}
@@ -79,7 +86,7 @@ func (t Model) DisplayList() string {
 func (t Model) ReadOnlyFields() string {
 	var list []string
 	for _, field := range t.Fields {
-		if _, yes := field.Tags["readonly_field"]; yes {
+		if _, yes := field.Django["readonly_field"]; yes {
 			list = append(list, field.Name)
 		}
 	}
@@ -176,6 +183,10 @@ func (t Field) DjangoField() (DjangoFieldType, error) {
 		return ForeignKey, nil
 	}
 
+	if t.HasManyToMany() {
+		return ManyToMany, nil
+	}
+
 	switch t.Type {
 	case "map":
 		return JSONField, nil
@@ -192,6 +203,9 @@ func (t Field) DjangoField() (DjangoFieldType, error) {
 	case "float32", "float64":
 		return FloatField, nil
 	case "string":
+		if _, ok := t.Tags["size"]; ok {
+			return CharField, nil
+		}
 		return TextField, nil
 	case "bool":
 		return BooleanField, nil
@@ -215,6 +229,11 @@ func (t Field) DjangoArgs() string {
 		args = append(args, fmt.Sprintf("on_delete=models.%s", onDelete))
 	}
 
+	if t.HasManyToMany() {
+		args = append(args, fmt.Sprintf("'%s'", t.Type))
+		args = append(args, fmt.Sprintf("through='%s'", t.ManyToManyTable))
+	}
+
 	if t.IsPrimaryKey {
 		args = append(args, "primary_key=True")
 	}
@@ -223,7 +242,13 @@ func (t Field) DjangoArgs() string {
 		args = append(args, "null=True")
 	}
 
-	args = append(args, "blank=True")
+	if size, ok := t.Tags["size"]; ok {
+		args = append(args, fmt.Sprintf("max_length=%s", size))
+	}
+
+	if !t.IsPrimaryKey && !t.IsRelationship {
+		args = append(args, "blank=True")
+	}
 
 	return strings.Join(args, ", ")
 }
@@ -235,110 +260,3 @@ func (t Field) OnDelete() (string, bool) {
 	}
 	return onDelete, true
 }
-
-/*
-// GORM model tag constants
-const (
-	gormTag        = "gorm"
-	columnTag      = "column"
-	typeTag        = "type"
-	autoIncrement  = "AUTO_INCREMENT"
-	primaryKeyTag  = "primary_key"
-	uniqueTag      = "unique"
-	notNullTag     = "not null"
-	defaultTag     = "default"
-	defaultExprTag = "default_expr"
-)
-
-// GolangToDjangoType converts Golang type to Django model field type
-func GolangToDjangoType(golangType string) string {
-	switch golangType {
-	case "int", "int8", "int16", "int32", "uint", "uint8", "uint16", "uint32":
-		return "IntegerField"
-	case "int64", "uint64":
-		return "BigIntegerField"
-	case "float32", "float64":
-		return "FloatField"
-	case "string":
-		return "CharField"
-	case "bool":
-		return "BooleanField"
-	default:
-		return "UnknownFieldType"
-	}
-}
-
-// ConvertGORMToDjangoModel converts GORM model to Django model definition
-func ConvertGORMToDjangoModel(gormModel interface{}) {
-	modelType := reflect.TypeOf(gormModel)
-
-	if modelType.Kind() != reflect.Struct {
-		fmt.Println("Input is not a struct")
-		return
-	}
-
-	modelName := modelType.Name()
-
-	fmt.Printf("class %s(models.Model):\n", modelName)
-
-	for i := 0; i < modelType.NumField(); i++ {
-		field := modelType.Field(i)
-		fieldName := field.Name
-		gormTag := field.Tag.Get(gormTag)
-		djangoType := GolangToDjangoType(field.Type.Name())
-
-		fmt.Printf("    %s = models.%s(", fieldName, djangoType)
-
-		// Parse GORM tags
-		if gormTag != "" {
-			tags := strings.Split(gormTag, ";")
-			for _, tag := range tags {
-				tagParts := strings.Split(tag, ":")
-				tagName := tagParts[0]
-				tagValue := ""
-				if len(tagParts) > 1 {
-					tagValue = tagParts[1]
-				}
-
-				switch tagName {
-				case columnTag:
-					fmt.Printf("db_column='%s', ", tagValue)
-				case typeTag:
-					// Handle type tag, if needed
-				case primaryKeyTag:
-					fmt.Print("primary_key=True, ")
-				case uniqueTag:
-					fmt.Print("unique=True, ")
-				case notNullTag:
-					fmt.Print("null=False, ")
-				case defaultTag:
-					fmt.Printf("default='%s', ", tagValue)
-				case defaultExprTag:
-					// Handle default_expr tag, if needed
-				}
-			}
-		}
-
-		fmt.Println(")")
-
-		// Print any additional configuration for the field
-		// Add your own logic based on your specific requirements
-
-		fmt.Println()
-	}
-}
-
-// Example GORM model
-type GORMModel struct {
-	ID        uint   `gorm:"column:id;primary_key;auto_increment" json:"id"`
-	Name      string `gorm:"column:name;type:varchar(255);not null" json:"name"`
-	Age       int    `gorm:"column:age;not null;default:0" json:"age"`
-	IsStudent bool   `gorm:"column:is_student;not null;default:false" json:"is_student"`
-}
-
-func main() {
-	// Example usage
-	gormModel := &GORMModel{}
-	ConvertGORMToDjangoModel(gormModel)
-}
-*/

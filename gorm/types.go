@@ -2,7 +2,6 @@ package gorm
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/stoewer/go-strcase"
@@ -269,9 +268,6 @@ func parseConstraints(optionsString string) map[string]string {
 			options[key] = value
 		}
 	}
-
-	fmt.Println("Cons", options)
-
 	return options
 }
 

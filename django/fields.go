@@ -11,6 +11,7 @@ type FieldFunc func(out chan<- Field, field gorm.Field, st gorm.Struct, structMa
 var fieldFuncs = []FieldFunc{
 	makeEmbedded,
 	makeRelationship,
+	makeManyToMany,
 	makeID,
 	makeMap,
 	makeField,
@@ -61,6 +62,23 @@ func makeRelationship(out chan<- Field, field gorm.Field, st gorm.Struct, struct
 	return false, nil
 }
 
+func makeManyToMany(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[string]gorm.Struct) (bool, error) {
+	if tableName, ok := field.IsMany2Many(); ok {
+
+		modelType, _ := field.GetType()
+		out <- Field{
+			Name:            field.SnakeName(),
+			Type:            modelType,
+			IsNullable:      false,
+			IsRelationship:  false,
+			ManyToManyTable: tableName,
+		}
+
+		return true, nil
+	}
+	return false, nil
+}
+
 func makeID(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[string]gorm.Struct) (bool, error) {
 	if field.IsPrimaryKey() {
 		out <- Field{
@@ -91,11 +109,13 @@ func makeMap(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[s
 
 func makeField(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[string]gorm.Struct) (bool, error) {
 	modelType, nullable := field.GetType()
+
 	out <- Field{
 		Name:       field.SnakeName(),
 		Type:       modelType,
 		IsNullable: nullable,
-		Tags:       field.GetTags("django"),
+		Tags:       field.GetTags("gorm"),
+		Django:     field.GetTags("django"),
 	}
 	return true, nil
 }

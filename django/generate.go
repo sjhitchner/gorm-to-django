@@ -8,7 +8,7 @@ import (
 
 	"github.com/sjhitchner/gorm-to-django/gorm"
 
-	"github.com/iancoleman/strcase"
+	"github.com/stoewer/go-strcase"
 )
 
 type Generator struct {
@@ -107,7 +107,7 @@ func makeModel(s gorm.Struct, structMap map[string]gorm.Struct) (*Model, error) 
 
 	return &Model{
 		Name:      s.Name,
-		TableName: strcase.ToSnake(s.TableName()),
+		TableName: strcase.SnakeCase(s.TableName()),
 		Fields:    fields,
 	}, nil
 }
