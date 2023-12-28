@@ -58,7 +58,7 @@ type Event struct {
 	Genre          *Genre       `json:"genre,omitempty"`
 	VenueID        int64        `json:"venue_id,omitempty"`
 	Venue          *Venue       `json:"venue,omitempty"`
-	Categories     []*Category  `json:"categories" gorm:"foreignKey:EventID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	Categories     []*Category  `json:"categories" gorm:"many2many:event_categories;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	CreatedAt      *time.Time   `json:"created_at,omitempty" gorm:"autoCreateTime"`
 	UpdatedAt      *time.Time   `json:"updated_at,omitempty" gorm:"autoUpdateTime"`
 	DeletedAt      *time.Time   `json:"deleted_at,omitempty"`

@@ -2,22 +2,33 @@ package gorm
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
-	"github.com/iancoleman/strcase"
+	"github.com/stoewer/go-strcase"
 )
 
 type UpdateType int
 
 const (
-	Add UpdateType = iota
-	Delete
+	AddField UpdateType = iota
+	DeleteField
+	AddStruct
 )
 
 type Update struct {
-	Struct string
-	Type   UpdateType
-	Field  Field
+	Struct   string
+	Metadata map[string]string
+	Type     UpdateType
+	Fields   []Field
+}
+
+func (t Update) String() string {
+	b, err := json.MarshalIndent(t, "", "  ")
+	if err != nil {
+		return string(b)
+	}
+	return string(b)
 }
 
 type Struct struct {
@@ -28,11 +39,22 @@ type Struct struct {
 }
 
 func (t Struct) SnakeName() string {
-	return strcase.ToSnake(t.Name)
+	// return strcase.ToSnake(t.Name)
+	return strcase.SnakeCase(t.Name)
 }
 
 func (t Struct) TableName() string {
 	return t.Metadata["tablename"]
+}
+
+func (t Struct) HasMany2Many() ([]Field, bool) {
+	fields := make([]Field, 0, 5)
+	for _, f := range t.Fields {
+		if _, yes := f.IsMany2Many(); yes {
+			fields = append(fields, f)
+		}
+	}
+	return fields, len(fields) > 0
 }
 
 func (t Struct) String() string {
@@ -80,6 +102,15 @@ func (t Field) IsForeignKey() (string, bool) {
 	return "", false
 }
 
+func (t Field) IsMany2Many() (string, bool) {
+	for _, tag := range t.Tags {
+		if tag.IsMany2Many() {
+			return tag.Value, true
+		}
+	}
+	return "", false
+}
+
 func (t Field) IsRelationshipID() bool {
 	return strings.HasSuffix(t.Name, "ID") && !t.IsID()
 }
@@ -94,7 +125,8 @@ func (t Field) HasConstraints() (map[string]string, bool) {
 }
 
 func (t Field) SnakeName() string {
-	return strcase.ToSnake(t.Name)
+	// return strcase.ToSnake(t.Name)
+	return strcase.SnakeCase(t.Name)
 }
 
 func (t Field) GetType() (string, bool) {
@@ -201,6 +233,10 @@ func (t Tag) IsForeignKey() bool {
 	return t.Name == "foreignKey"
 }
 
+func (t Tag) IsMany2Many() bool {
+	return t.Name == "many2many"
+}
+
 func (t Tag) IsAutoCreateTime() bool {
 	return t.Name == "autoCreateTime"
 }
@@ -210,10 +246,10 @@ func (t Tag) IsAutoUpdateTime() bool {
 }
 
 func (t Tag) HasConstraints() (map[string]string, bool) {
-	if t.Name != "constraint" {
-		return nil, false
+	if t.Name == "constraint" {
+		return parseConstraints(t.Value), true
 	}
-	return parseConstraints(t.Value), true
+	return nil, false
 }
 
 func parseConstraints(optionsString string) map[string]string {
@@ -227,11 +263,14 @@ func parseConstraints(optionsString string) map[string]string {
 		// Split the record into key and value separated by colon
 		parts := strings.SplitN(record, ":", 2)
 		if len(parts) == 2 {
-			key := strcase.ToSnake(strings.TrimSpace(parts[0]))
+			// key := strcase.ToSnake(strings.TrimSpace(parts[0]))
+			key := strcase.SnakeCase(strings.TrimSpace(parts[0]))
 			value := strings.TrimSpace(parts[1])
 			options[key] = value
 		}
 	}
+
+	fmt.Println("Cons", options)
 
 	return options
 }

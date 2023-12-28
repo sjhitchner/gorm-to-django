@@ -3,6 +3,8 @@ package gorm
 import (
 	"fmt"
 	"sync"
+
+	"github.com/stoewer/go-strcase"
 )
 
 type PreprocessFunc func(out chan<- Update, field Field, st Struct, structMap map[string]Struct) error
@@ -10,6 +12,7 @@ type PreprocessFunc func(out chan<- Update, field Field, st Struct, structMap ma
 var preprocessFuncs = []PreprocessFunc{
 	ignoreRelationshipID,
 	makeForeignKey,
+	many2Many,
 }
 
 func Preprocess(in <-chan Struct) (<-chan Struct, <-chan error) {
@@ -51,7 +54,6 @@ func Preprocess(in <-chan Struct) (<-chan Struct, <-chan error) {
 					}
 				}
 			}
-
 		}()
 
 		wg.Wait()
@@ -60,13 +62,22 @@ func Preprocess(in <-chan Struct) (<-chan Struct, <-chan error) {
 			s := structMap[u.Struct]
 
 			switch u.Type {
-			case Add:
-				addField(&s, u.Field)
-			case Delete:
-				removeField(&s, u.Field)
-			}
+			case AddField:
+				addFields(&s, u.Fields...)
+				structMap[u.Struct] = s
 
-			structMap[u.Struct] = s
+			case DeleteField:
+				removeFields(&s, u.Fields...)
+				structMap[u.Struct] = s
+
+			case AddStruct:
+				structMap[u.Struct] = Struct{
+					IsModel:  true,
+					Name:     u.Struct,
+					Metadata: u.Metadata,
+					Fields:   u.Fields,
+				}
+			}
 		}
 
 		for _, s := range structMap {
@@ -96,15 +107,15 @@ func ignoreRelationshipID(out chan<- Update, field Field, st Struct, structMap m
 
 		out <- Update{
 			Struct: st.Name,
-			Type:   Delete,
-			Field: Field{
-				Name: field.Name,
+			Type:   DeleteField,
+			Fields: []Field{
+				Field{
+					Name: field.Name,
+				},
 			},
 		}
-
 		return nil
 	}
-
 	return nil
 }
 
@@ -119,19 +130,23 @@ func makeForeignKey(out chan<- Update, field Field, st Struct, structMap map[str
 
 		out <- Update{
 			Struct: modelName,
-			Type:   Add,
-			Field: Field{
-				Name: relationName,
-				Type: fmt.Sprintf("*%s", st.Name),
-				Tags: field.Tags,
+			Type:   AddField,
+			Fields: []Field{
+				Field{
+					Name: relationName,
+					Type: fmt.Sprintf("*%s", st.Name),
+					Tags: field.Tags,
+				},
 			},
 		}
 
 		out <- Update{
 			Struct: st.Name,
-			Type:   Delete,
-			Field: Field{
-				Name: field.Name,
+			Type:   DeleteField,
+			Fields: []Field{
+				Field{
+					Name: field.Name,
+				},
 			},
 		}
 
@@ -140,17 +155,79 @@ func makeForeignKey(out chan<- Update, field Field, st Struct, structMap map[str
 	return nil
 }
 
-func addField(s *Struct, field Field) {
-	removeField(s, field)
-	s.Fields = append(s.Fields, field)
-}
+func many2Many(out chan<- Update, field Field, st Struct, structMap map[string]Struct) error {
+	if tableName, yes := field.IsMany2Many(); yes {
+		fieldType, _ := field.GetType()
 
-func removeField(s *Struct, field Field) {
-	fields := make([]Field, 0, len(s.Fields))
-	for _, f := range s.Fields {
-		if field.Name != f.Name {
-			fields = append(fields, f)
+		out <- Update{
+			Struct: strcase.UpperCamelCase(tableName),
+			Metadata: map[string]string{
+				"tablename": tableName,
+			},
+			Type: AddStruct,
+			Fields: []Field{
+				Field{
+					Name: "ID",
+					Type: "int64",
+					Tags: map[string]Tag{
+						"primaryKey": Tag{
+							Name:   "primaryKey",
+							Source: "gorm",
+						},
+					},
+				},
+				Field{
+					Name: st.Name,
+					Type: "*" + st.Name,
+					Tags: map[string]Tag{
+						"constraint": Tag{
+							Name:   "constraint",
+							Value:  "OnDelete:CASCADE",
+							Source: "gorm",
+						},
+					},
+				},
+				Field{
+					Name: fieldType,
+					Type: "*" + fieldType,
+					Tags: map[string]Tag{
+						"constraint": Tag{
+							Name:   "constraint",
+							Value:  "OnDelete:PROTECT",
+							Source: "gorm",
+						},
+					},
+				},
+			},
+		}
+
+		out <- Update{
+			Struct: st.Name,
+			Type:   DeleteField,
+			Fields: []Field{
+				Field{
+					Name: field.Name,
+				},
+			},
 		}
 	}
-	s.Fields = fields
+
+	return nil
+}
+
+func addFields(s *Struct, fields ...Field) {
+	removeFields(s, fields...)
+	s.Fields = append(s.Fields, fields...)
+}
+
+func removeFields(s *Struct, fields ...Field) {
+	out := make([]Field, 0, len(s.Fields))
+	for _, f := range s.Fields {
+		for _, field := range fields {
+			if field.Name != f.Name {
+				out = append(out, f)
+			}
+		}
+	}
+	s.Fields = out
 }

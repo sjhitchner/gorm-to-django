@@ -50,7 +50,6 @@ func gormInspect(ch chan<- Struct, fset *token.FileSet) func(node ast.Node) bool
 				fields := make([]Field, 0, 20)
 				for _, f := range structType.Fields.List {
 					field := parseField(fset, f)
-					fmt.Println("field", field)
 					fields = append(fields, field)
 				}
 
