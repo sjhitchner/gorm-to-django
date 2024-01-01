@@ -12,7 +12,9 @@ class {{ .Name }}(models.Model):
 
 	class Meta:
 		managed = False
-		db_table = '{{ .TableName }}'
+		{{- range $k, $v := .Metadata }}
+		{{ $k }} = {{ $v }}
+		{{- end }}
 
 	def __str__(self):
 		return self.name
@@ -32,7 +34,7 @@ from .models import (
 {{ range . }}
 class {{ .Name }}Admin(admin.ModelAdmin):
 	list_display = [{{ .DisplayList }}]
-	readonly_fields = [{{ .ReadOnlyFields }}]  
+	readonly_fields = [{{ .ReadOnlyFields }}]
 {{ end }}
 
 {{ range . }}

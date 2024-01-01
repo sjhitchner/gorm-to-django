@@ -58,9 +58,9 @@ func (t Field) HasManyToMany() bool {
 }
 
 type Model struct {
-	Name      string
-	TableName string
-	Fields    Fields
+	Name     string
+	Metadata map[string]string
+	Fields   Fields
 }
 
 func (t Model) DisplayList() string {

@@ -1,6 +1,7 @@
 package django
 
 import (
+	"fmt"
 	"io"
 	"sort"
 	"sync"
@@ -106,9 +107,11 @@ func makeModel(s gorm.Struct, structMap map[string]gorm.Struct) (*Model, error) 
 	wg.Wait()
 
 	return &Model{
-		Name:      s.Name,
-		TableName: strcase.SnakeCase(s.TableName()),
-		Fields:    fields,
+		Name: s.Name,
+		Metadata: map[string]string{
+			"db_table": fmt.Sprintf("'%s'", strcase.SnakeCase(s.TableName())),
+		},
+		Fields: fields,
 	}, nil
 }
 
