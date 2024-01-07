@@ -76,7 +76,7 @@ func (s *GORMSuite) TestPreprocess(c *C) {
 
 func checkEvent(c *C, s Struct) {
 	c.Assert(s.Name, Equals, "Event")
-	c.Assert(len(s.Fields), Equals, 17)
+	c.Assert(len(s.Fields), Equals, 18)
 }
 
 func checkCategory(c *C, s Struct) {

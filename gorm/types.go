@@ -66,7 +66,7 @@ func (t Struct) String() string {
 
 func (t Struct) HasRelation(key string) bool {
 	for _, field := range t.Fields {
-		if strings.HasPrefix(field.Name, key[:len(key)-2]) {
+		if field.Name == key[:len(key)-2] {
 			return true
 		}
 	}
@@ -124,7 +124,6 @@ func (t Field) HasConstraints() (map[string]string, bool) {
 }
 
 func (t Field) SnakeName() string {
-	// return strcase.ToSnake(t.Name)
 	return strcase.SnakeCase(t.Name)
 }
 

@@ -100,21 +100,19 @@ func preprocessStruct(out chan<- Update, s Struct, structMap map[string]Struct) 
 }
 
 func ignoreRelationshipID(out chan<- Update, field Field, st Struct, structMap map[string]Struct) error {
-	if field.IsRelationshipID() {
-		if !st.HasRelation(field.Name) {
-			return fmt.Errorf("Model has RelationshipID (%s) but no corresponding relation", field.Name)
-		}
 
-		out <- Update{
-			Struct: st.Name,
-			Type:   DeleteField,
-			Fields: []Field{
-				Field{
-					Name: field.Name,
+	if field.IsRelationshipID() {
+		if st.HasRelation(field.Name) {
+			out <- Update{
+				Struct: st.Name,
+				Type:   DeleteField,
+				Fields: []Field{
+					Field{
+						Name: field.Name,
+					},
 				},
-			},
+			}
 		}
-		return nil
 	}
 	return nil
 }

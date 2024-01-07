@@ -109,7 +109,6 @@ func makeMap(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[s
 
 func makeField(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[string]gorm.Struct) (bool, error) {
 	modelType, nullable := field.GetType()
-
 	out <- Field{
 		Name:       field.SnakeName(),
 		Type:       modelType,

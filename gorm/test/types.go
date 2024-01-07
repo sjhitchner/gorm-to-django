@@ -43,6 +43,7 @@ type Money struct {
 // g2d tablename:events
 type Event struct {
 	ID             int64        `json:"id" gorm:"primaryKey"`
+	ExternalID     int64        `json:"external_id" gorm:"index"`
 	EventAPI       EventAPIName `json:"event_api" gorm:"index"`
 	Name           string       `json:"name" django:"display_list"`
 	Link           string       `json:"link"`
