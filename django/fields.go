@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/sjhitchner/gorm-to-django/gorm"
+
+	"github.com/stoewer/go-strcase"
 )
 
 type FieldFunc func(out chan<- Field, field gorm.Field, st gorm.Struct, structMap map[string]gorm.Struct) (bool, error)
@@ -71,7 +73,7 @@ func makeManyToMany(out chan<- Field, field gorm.Field, st gorm.Struct, structMa
 			Type:            modelType,
 			IsNullable:      false,
 			IsRelationship:  false,
-			ManyToManyTable: tableName,
+			ManyToManyTable: strcase.UpperCamelCase(tableName),
 		}
 
 		return true, nil

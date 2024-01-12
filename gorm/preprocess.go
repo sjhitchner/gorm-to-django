@@ -157,6 +157,8 @@ func many2Many(out chan<- Update, field Field, st Struct, structMap map[string]S
 	if tableName, yes := field.IsMany2Many(); yes {
 		fieldType, _ := field.GetType()
 
+		fmt.Println(st.Name, fieldType)
+
 		out <- Update{
 			Struct: strcase.UpperCamelCase(tableName),
 			Metadata: map[string]string{
@@ -195,16 +197,6 @@ func many2Many(out chan<- Update, field Field, st Struct, structMap map[string]S
 							Source: "gorm",
 						},
 					},
-				},
-			},
-		}
-
-		out <- Update{
-			Struct: st.Name,
-			Type:   DeleteField,
-			Fields: []Field{
-				Field{
-					Name: field.Name,
 				},
 			},
 		}
